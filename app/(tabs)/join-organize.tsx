@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, Pressable, Alert } from 'react-nativ
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
-import { Users, Key, CheckCircle } from 'lucide-react-native';
+import { Users, Key, CircleCheck as CheckCircle } from 'lucide-react-native';
 
 export default function JoinOrganizeScreen() {
   const { profile, refreshProfile } = useAuth();

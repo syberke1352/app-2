@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Clock, CheckCircle, XCircle, FileAudio, User, Calendar, Play, Pause } from 'lucide-react-native';
+import { Clock, CircleCheck as CheckCircle, Circle as XCircle, FileAudio, User, Calendar, Play, Pause } from 'lucide-react-native';
 
 interface SetoranPenilaian {
   id: string;

@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import * as DocumentPicker from 'expo-document-picker';
 import { CloudinaryService } from '@/services/cloudinary';
-import { Upload, Clock, CheckCircle, XCircle, BookOpen, Calendar, FileAudio, Play, Pause } from 'lucide-react-native';
+import { Upload, Clock, CircleCheck as CheckCircle, Circle as XCircle, BookOpen, Calendar, FileAudio, Play, Pause } from 'lucide-react-native';
 
 interface SetoranItem {
   id: string;

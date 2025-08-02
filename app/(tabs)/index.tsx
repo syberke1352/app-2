@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BookOpen, Award, Users, TrendingUp, Calendar, Star, Trophy, Clock, Target, PlusCircle } from 'lucide-react-native';
+import { BookOpen, Award, Users, TrendingUp, Calendar, Star, Trophy, Clock, Target, CirclePlus as PlusCircle } from 'lucide-react-native';
 
 interface DashboardStats {
   totalSetoran?: number;

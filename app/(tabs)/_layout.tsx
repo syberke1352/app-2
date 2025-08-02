@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Tabs, router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
-import { Home, BookOpen, Trophy, Users, User, PlusCircle, Settings, Monitor } from 'lucide-react-native';
+import { Chrome as Home, BookOpen, Trophy, Users, User, CirclePlus as PlusCircle, Settings, Monitor } from 'lucide-react-native';
 
 export default function TabsLayout() {
   const { user, profile, loading } = useAuth();
