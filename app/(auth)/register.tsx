@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Alert, ScrollView } from 'react-native';
-import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BookOpen, Mail, Lock, User, ArrowLeft, ChevronDown } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { ArrowLeft, BookOpen, ChevronDown, Lock, Mail, User } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 const roles = [
   { value: 'siswa', label: 'Siswa' },
@@ -38,7 +38,7 @@ export default function RegisterScreen() {
       Alert.alert('Error', error);
     } else {
       Alert.alert('Sukses', 'Akun berhasil dibuat!', [
-        { text: 'OK', onPress: () => router.replace('/(tabs)') }
+        { text: 'OK', onPress: () => router.replace('/login') }
       ]);
     }
     setLoading(false);

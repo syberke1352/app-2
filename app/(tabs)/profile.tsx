@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { router } from 'expo-router';
-import { User, Mail, Shield, Settings, LogOut, Trophy, BookOpen, Award } from 'lucide-react-native';
+import { Award, BookOpen, LogOut, Settings, Shield, Trophy, User } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 export default function ProfileScreen() {
   const { profile, user, signOut } = useAuth();
@@ -152,14 +152,23 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Tentang Aplikasi</Text>
         
-        <View style={styles.appInfoCard}>
-          <BookOpen size={32} color="#10B981" />
-          <Text style={styles.appName}>Ngaji App</Text>
-          <Text style={styles.appVersion}>Versi 1.0.0</Text>
-          <Text style={styles.appDescription}>
-            Platform pembelajaran Quran digital untuk hafalan, murojaah, dan monitoring perkembangan siswa.
-          </Text>
-        </View>
+       <View style={styles.appInfoCard}>
+  <BookOpen size={44} color="#10B981" style={{ marginBottom: 12 }} />
+
+  <Text style={styles.appName}>Ngaji App</Text>
+  <Text style={styles.appVersion}>Versi 1.0.0</Text>
+
+  <View style={styles.authorContainer}>
+    <Text style={styles.madeBy}>Dirancang dan dibangun oleh:</Text>
+    <Text style={styles.authorName}>Akra Mujjaman Raton</Text>
+    <Text style={styles.authorName}>Qiageng Berke Jaisyurrohman</Text>
+  </View>
+
+  <Text style={styles.appDescription}>
+    Platform pembelajaran Quran digital untuk hafalan, murojaah, dan monitoring perkembangan siswa.
+  </Text>
+</View>
+
       </View>
     </ScrollView>
   );
@@ -322,4 +331,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+
+
+
+
+
+
+authorContainer: {
+  alignItems: 'center',
+  marginBottom: 12,
+},
+
+madeBy: {
+  fontSize: 14,
+  color: '#4B5563',
+  fontStyle: 'italic',
+  marginBottom: 2,
+},
+
+authorName: {
+  fontSize: 14,
+  color: '#111827',
+  fontWeight: '600',
+},
+
+
+
 });

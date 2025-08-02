@@ -1,7 +1,18 @@
-import React, { useEffect } from 'react';
-import { Tabs, router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
-import { Chrome as Home, BookOpen, Trophy, Users, User, CirclePlus as PlusCircle, Settings, Monitor } from 'lucide-react-native';
+import { Tabs, router } from 'expo-router';
+import {  Home,
+  BookOpen,
+  Trophy,
+  CloudUpload,
+  ListChecks,
+  HousePlus ,
+  User,
+  ClipboardCheck,
+  ShieldCheck,
+  GraduationCap,
+  BarChart3
+ } from 'lucide-react-native';
+import React, { useEffect } from 'react';
 
 export default function TabsLayout() {
   const { user, profile, loading } = useAuth();
@@ -13,7 +24,7 @@ export default function TabsLayout() {
     }
   }, [user, loading]);
 
-  if (loading || !user || !role) {
+  if (loading || !user || !profile) {
     return null;
   }
 
@@ -30,6 +41,11 @@ export default function TabsLayout() {
         title: 'Al-Quran',
         icon: BookOpen,
       },
+         {
+            name: 'leaderboard',
+            title: 'Leaderboard',
+            icon: Trophy,
+          },
     ];
 
     switch (role) {
@@ -39,22 +55,17 @@ export default function TabsLayout() {
           {
             name: 'setoran',
             title: 'Setoran',
-            icon: PlusCircle,
+            icon: CloudUpload,
           },
           {
             name: 'quiz',
             title: 'Quiz',
-            icon: Trophy,
-          },
-          {
-            name: 'leaderboard',
-            title: 'Leaderboard',
-            icon: Trophy,
+            icon: ListChecks,
           },
           {
             name: 'join-organize',
             title: 'Gabung Kelas',
-            icon: Users,
+            icon: HousePlus ,
           },
           {
             name: 'profile',
@@ -68,12 +79,12 @@ export default function TabsLayout() {
           {
             name: 'penilaian',
             title: 'Penilaian',
-            icon: Trophy,
+            icon: ClipboardCheck ,
           },
           {
             name: 'organize',
             title: 'Kelas',
-            icon: Users,
+            icon: GraduationCap,
           },
           {
             name: 'profile',
@@ -87,7 +98,7 @@ export default function TabsLayout() {
           {
             name: 'monitoring',
             title: 'Monitoring',
-            icon: Monitor,
+            icon: BarChart3,
           },
           {
             name: 'profile',
@@ -101,7 +112,7 @@ export default function TabsLayout() {
           {
             name: 'admin',
             title: 'Admin',
-            icon: Settings,
+            icon: ShieldCheck,
           },
           {
             name: 'profile',

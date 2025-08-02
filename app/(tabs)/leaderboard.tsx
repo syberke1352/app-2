@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Trophy, Medal, Award, Crown, Star } from 'lucide-react-native';
+import { Trophy, Medal, Award, Crown,BookOpen , Star } from 'lucide-react-native';
 
 interface LeaderboardEntry {
   id: string;
@@ -149,7 +149,7 @@ export default function LeaderboardScreen() {
 
             {/* 3rd Place */}
             <View style={[styles.podiumPlace, styles.thirdPlace]}>
-              <View style={[styles.podiumIcon, { backgroundColor: '#CD7F32' }]}>
+              <View style={[styles.podiumIcon, { backgroundColor: '#e3811fff' }]}>
                 <Medal size={24} color="white" />
               </View>
               <Text style={styles.podiumName}>{leaderboard[2]?.name}</Text>
@@ -323,26 +323,68 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  podium: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-    gap: 8,
-    marginTop: 16,
-  },
-  podiumPlace: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  firstPlace: {
-    marginBottom: 0,
-  },
-  secondPlace: {
-    marginBottom: 20,
-  },
-  thirdPlace: {
-    marginBottom: 40,
-  },
+ podium: {
+  flexDirection: 'row',
+  justifyContent: 'center',
+  alignItems: 'flex-end', // Dasar semua sejajar
+  gap: 12,
+  marginTop: 24,
+},
+podiumPlace: {
+  alignItems: 'center',
+  marginHorizontal: 0,
+},
+
+
+firstPlace: {
+  backgroundColor: '#DAC02D', // emas
+  width: 120,
+  height: 180, // paling tinggi
+  borderTopLeftRadius: 12,
+  borderTopRightRadius: 12,
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  elevation: 4, // Android
+shadowColor: '#000', // iOS
+shadowOffset: { width: 0, height: 2 },
+shadowOpacity: 0.25,
+shadowRadius: 3.84,
+
+},
+
+secondPlace: {
+  backgroundColor: '#A8A8A8', // perak
+  width: 120,
+  height: 150,
+  borderTopLeftRadius: 12,
+  borderTopRightRadius: 12,
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  elevation: 4, // Android
+shadowColor: '#000', // iOS
+shadowOffset: { width: 0, height: 2 },
+shadowOpacity: 0.25,
+shadowRadius: 3.84,
+
+},
+
+thirdPlace: {
+  backgroundColor: '#c2762aff', // perunggu
+  width: 120,
+  height: 135,
+  borderTopLeftRadius: 12,
+  borderTopRightRadius: 12,
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  elevation: 4, // Android
+shadowColor: '#000', // iOS
+shadowOffset: { width: 0, height: 2 },
+shadowOpacity: 0.25,
+shadowRadius: 3.84,
+
+},
+
+
   podiumIcon: {
     width: 48,
     height: 48,
@@ -368,6 +410,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     fontWeight: 'bold',
+    paddingBottom:10,
   },
   section: {
     margin: 16,
