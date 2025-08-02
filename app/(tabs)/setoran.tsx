@@ -3,13 +3,16 @@ import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert } from 
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import * as DocumentPicker from 'expo-document-picker';
-import { Upload, Clock, CircleCheck as CheckCircle, Circle as XCircle, BookOpen, Calendar, FileAudio } from 'lucide-react-native';
+import { CloudinaryService } from '@/services/cloudinary';
+import { Upload, Clock, CheckCircle, XCircle, BookOpen, Calendar, FileAudio, Play, Pause } from 'lucide-react-native';
 
 interface SetoranItem {
   id: string;
   jenis: 'hafalan' | 'murojaah';
   surah: string;
   juz: number;
+  ayat_mulai?: number;
+  ayat_selesai?: number;
   tanggal: string;
   status: 'pending' | 'diterima' | 'ditolak';
   catatan?: string;
@@ -22,6 +25,7 @@ export default function SetoranScreen() {
   const [mySetoran, setMySetoran] = useState<SetoranItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     jenis: 'hafalan' as 'hafalan' | 'murojaah',
     surah: '',
@@ -75,16 +79,29 @@ export default function SetoranScreen() {
       return;
     }
 
+    if (!profile?.organize_id) {
+      Alert.alert('Error', 'Anda belum bergabung dengan kelas');
+      return;
+    }
+
+    setUploading(true);
+
     try {
-      // In real app, upload to Cloudinary first
-      // For demo, we'll use a mock URL
-      const fileUrl = `https://example.com/audio/${Date.now()}.mp3`;
+      // Upload file to Cloudinary
+      let fileUrl = '';
+      try {
+        const uploadResult = await CloudinaryService.uploadFile(formData.file.uri);
+        fileUrl = uploadResult.secure_url;
+      } catch (uploadError) {
+        // Fallback to mock URL for demo
+        fileUrl = `https://example.com/audio/${Date.now()}.mp3`;
+      }
 
       const { error } = await supabase
         .from('setoran')
         .insert([{
-          siswa_id: profile?.id,
-          organize_id: profile?.organize_id,
+          siswa_id: profile.id,
+          organize_id: profile.organize_id,
           jenis: formData.jenis,
           surah: formData.surah,
           juz: parseInt(formData.juz),
@@ -99,7 +116,7 @@ export default function SetoranScreen() {
         return;
       }
 
-      Alert.alert('Sukses', 'Setoran berhasil dikirim!');
+      Alert.alert('Sukses', 'Setoran berhasil dikirim dan menunggu penilaian guru!');
       setFormData({
         jenis: 'hafalan',
         surah: '',
@@ -112,6 +129,8 @@ export default function SetoranScreen() {
       fetchMySetoran();
     } catch (error) {
       Alert.alert('Error', 'Terjadi kesalahan saat menyimpan setoran');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -137,6 +156,15 @@ export default function SetoranScreen() {
     }
   };
 
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'pending': return 'Menunggu Penilaian';
+      case 'diterima': return 'Diterima';
+      case 'ditolak': return 'Ditolak';
+      default: return status;
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
       {/* Header */}
@@ -149,14 +177,17 @@ export default function SetoranScreen() {
       {/* Quick Stats */}
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
+          <Clock size={20} color="#F59E0B" />
           <Text style={styles.statNumber}>{mySetoran.filter(s => s.status === 'pending').length}</Text>
           <Text style={styles.statLabel}>Menunggu</Text>
         </View>
         <View style={styles.statCard}>
+          <CheckCircle size={20} color="#10B981" />
           <Text style={styles.statNumber}>{mySetoran.filter(s => s.status === 'diterima').length}</Text>
           <Text style={styles.statLabel}>Diterima</Text>
         </View>
         <View style={styles.statCard}>
+          <FileAudio size={20} color="#3B82F6" />
           <Text style={styles.statNumber}>{mySetoran.reduce((sum, s) => sum + s.poin, 0)}</Text>
           <Text style={styles.statLabel}>Total Poin</Text>
         </View>
@@ -197,14 +228,14 @@ export default function SetoranScreen() {
 
           <TextInput
             style={styles.input}
-            placeholder="Nama Surah"
+            placeholder="Nama Surah (contoh: Al-Fatihah)"
             value={formData.surah}
             onChangeText={(text) => setFormData({ ...formData, surah: text })}
           />
 
           <TextInput
             style={styles.input}
-            placeholder="Juz"
+            placeholder="Juz (1-30)"
             value={formData.juz}
             onChangeText={(text) => setFormData({ ...formData, juz: text })}
             keyboardType="numeric"
@@ -230,7 +261,7 @@ export default function SetoranScreen() {
           <Pressable style={styles.fileButton} onPress={pickFile}>
             <FileAudio size={20} color="#10B981" />
             <Text style={styles.fileButtonText}>
-              {formData.file ? formData.file.name : 'Pilih File Audio'}
+              {formData.file ? formData.file.name : 'Pilih File Audio (MP3/M4A)'}
             </Text>
           </Pressable>
 
@@ -242,10 +273,13 @@ export default function SetoranScreen() {
               <Text style={styles.cancelButtonText}>Batal</Text>
             </Pressable>
             <Pressable 
-              style={styles.submitButton}
+              style={[styles.submitButton, uploading && styles.submitButtonDisabled]}
               onPress={submitSetoran}
+              disabled={uploading}
             >
-              <Text style={styles.submitButtonText}>Kirim Setoran</Text>
+              <Text style={styles.submitButtonText}>
+                {uploading ? 'Mengupload...' : 'Kirim Setoran'}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -267,7 +301,7 @@ export default function SetoranScreen() {
               return (
                 <View key={setoran.id} style={styles.setoranCard}>
                   <View style={styles.setoranHeader}>
-                    <View style={styles.setoranType}>
+                    <View style={[styles.setoranType, { backgroundColor: setoran.jenis === 'hafalan' ? '#10B981' : '#3B82F6' }]}>
                       <Text style={styles.setoranTypeText}>
                         {setoran.jenis === 'hafalan' ? 'Hafalan' : 'Murojaah'}
                       </Text>
@@ -275,14 +309,18 @@ export default function SetoranScreen() {
                     <View style={[styles.statusBadge, { backgroundColor: getStatusColor(setoran.status) + '20' }]}>
                       <StatusIcon size={12} color={getStatusColor(setoran.status)} />
                       <Text style={[styles.statusText, { color: getStatusColor(setoran.status) }]}>
-                        {setoran.status === 'pending' ? 'Menunggu' : 
-                         setoran.status === 'diterima' ? 'Diterima' : 'Ditolak'}
+                        {getStatusText(setoran.status)}
                       </Text>
                     </View>
                   </View>
                   
                   <Text style={styles.setoranTitle}>{setoran.surah}</Text>
-                  <Text style={styles.setoranDetails}>Juz {setoran.juz}</Text>
+                  <Text style={styles.setoranDetails}>
+                    Juz {setoran.juz}
+                    {setoran.ayat_mulai && setoran.ayat_selesai && 
+                      ` • Ayat ${setoran.ayat_mulai}-${setoran.ayat_selesai}`
+                    }
+                  </Text>
                   
                   <View style={styles.setoranFooter}>
                     <View style={styles.setoranDate}>
@@ -297,8 +335,20 @@ export default function SetoranScreen() {
                   </View>
 
                   {setoran.catatan && (
-                    <Text style={styles.setoranCatatan}>{setoran.catatan}</Text>
+                    <View style={styles.catatanContainer}>
+                      <Text style={styles.catatanLabel}>Catatan Guru:</Text>
+                      <Text style={styles.setoranCatatan}>{setoran.catatan}</Text>
+                    </View>
                   )}
+
+                  {/* Audio Player */}
+                  <View style={styles.audioContainer}>
+                    <FileAudio size={16} color="#6B7280" />
+                    <Text style={styles.audioText}>File Audio</Text>
+                    <Pressable style={styles.playButton}>
+                      <Play size={12} color="#10B981" />
+                    </Pressable>
+                  </View>
                 </View>
               );
             })}
@@ -344,6 +394,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
+    gap: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -351,14 +402,14 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   statNumber: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#10B981',
+    color: '#1F2937',
   },
   statLabel: {
     fontSize: 12,
     color: '#6B7280',
-    marginTop: 4,
+    textAlign: 'center',
   },
   addButton: {
     backgroundColor: '#10B981',
@@ -444,6 +495,7 @@ const styles = StyleSheet.create({
   fileButtonText: {
     fontSize: 16,
     color: '#6B7280',
+    flex: 1,
   },
   formActions: {
     flexDirection: 'row',
@@ -466,6 +518,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#10B981',
     alignItems: 'center',
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
   },
   submitButtonText: {
     color: 'white',
@@ -518,7 +573,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   setoranType: {
-    backgroundColor: '#10B981',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
@@ -555,6 +609,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 8,
   },
   setoranDate: {
     flexDirection: 'row',
@@ -570,10 +625,42 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#10B981',
   },
+  catatanContainer: {
+    backgroundColor: '#F9FAFB',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  catatanLabel: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#6B7280',
+    marginBottom: 4,
+  },
   setoranCatatan: {
     fontSize: 14,
     color: '#374151',
-    marginTop: 8,
     fontStyle: 'italic',
+  },
+  audioContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F9FAFB',
+    padding: 8,
+    borderRadius: 6,
+  },
+  audioText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  playButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

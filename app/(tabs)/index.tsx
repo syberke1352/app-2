@@ -2,16 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BookOpen, Award, Users, TrendingUp, Calendar, Star,Trophy } from 'lucide-react-native';
+import { BookOpen, Award, Users, TrendingUp, Calendar, Star, Trophy, Clock, Target, PlusCircle } from 'lucide-react-native';
 
 interface DashboardStats {
   totalSetoran?: number;
   setoranPending?: number;
+  setoranDiterima?: number;
   totalPoin?: number;
   labelCount?: number;
   totalSiswa?: number;
   recentActivity?: any[];
+  hafalanProgress?: number;
+  murojaahProgress?: number;
 }
 
 export default function HomeScreen() {
@@ -54,22 +58,34 @@ export default function HomeScreen() {
       .eq('siswa_id', profile?.id)
       .single();
 
-    // Get setoran count
-    const { data: setoranData, count: setoranCount } = await supabase
+    // Get setoran stats
+    const { data: setoranData } = await supabase
       .from('setoran')
-      .select('*', { count: 'exact', head: true })
-      .eq('siswa_id', profile?.id);
+      .select('*')
+      .eq('siswa_id', profile?.id)
+      .order('created_at', { ascending: false });
 
     // Get labels count
-    const { data: labelsData, count: labelsCount } = await supabase
+    const { data: labelsData } = await supabase
       .from('labels')
-      .select('*', { count: 'exact', head: true })
+      .select('*')
       .eq('siswa_id', profile?.id);
 
+    const totalSetoran = setoranData?.length || 0;
+    const setoranDiterima = setoranData?.filter(s => s.status === 'diterima').length || 0;
+    const setoranPending = setoranData?.filter(s => s.status === 'pending').length || 0;
+    const hafalanProgress = setoranData?.filter(s => s.jenis === 'hafalan' && s.status === 'diterima').length || 0;
+    const murojaahProgress = setoranData?.filter(s => s.jenis === 'murojaah' && s.status === 'diterima').length || 0;
+
     setStats({
-      totalSetoran: setoranCount || 0,
+      totalSetoran,
+      setoranDiterima,
+      setoranPending,
       totalPoin: pointsData?.total_poin || 0,
-      labelCount: labelsCount || 0,
+      labelCount: labelsData?.length || 0,
+      recentActivity: setoranData?.slice(0, 3) || [],
+      hafalanProgress,
+      murojaahProgress,
     });
   };
 
@@ -88,20 +104,71 @@ export default function HomeScreen() {
       .eq('organize_id', profile?.organize_id)
       .eq('role', 'siswa');
 
+    // Get recent setoran for review
+    const { data: recentSetoran } = await supabase
+      .from('setoran')
+      .select(`
+        *,
+        siswa:siswa_id(name)
+      `)
+      .eq('organize_id', profile?.organize_id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(3);
+
     setStats({
       setoranPending: pendingCount || 0,
       totalSiswa: siswaCount || 0,
+      recentActivity: recentSetoran || [],
     });
   };
 
   const fetchOrtuStats = async () => {
-    // Implementation for parent monitoring
-    setStats({});
+    // Get children progress
+    const { data: childrenData } = await supabase
+      .from('users')
+      .select('id, name')
+      .eq('organize_id', profile?.organize_id)
+      .eq('role', 'siswa');
+
+    if (childrenData && childrenData.length > 0) {
+      const childId = childrenData[0].id; // For demo, take first child
+      
+      const { data: setoranData } = await supabase
+        .from('setoran')
+        .select('*')
+        .eq('siswa_id', childId);
+
+      const { data: pointsData } = await supabase
+        .from('siswa_poin')
+        .select('*')
+        .eq('siswa_id', childId)
+        .single();
+
+      setStats({
+        totalSetoran: setoranData?.length || 0,
+        setoranDiterima: setoranData?.filter(s => s.status === 'diterima').length || 0,
+        setoranPending: setoranData?.filter(s => s.status === 'pending').length || 0,
+        totalPoin: pointsData?.total_poin || 0,
+        recentActivity: setoranData?.slice(0, 3) || [],
+      });
+    }
   };
 
   const fetchAdminStats = async () => {
-    // Implementation for admin stats
-    setStats({});
+    // Get system-wide stats
+    const { count: usersCount } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true });
+
+    const { count: organizesCount } = await supabase
+      .from('organizes')
+      .select('*', { count: 'exact', head: true });
+
+    setStats({
+      totalSiswa: usersCount || 0,
+      totalSetoran: organizesCount || 0,
+    });
   };
 
   useEffect(() => {
@@ -113,14 +180,14 @@ export default function HomeScreen() {
     fetchDashboardData();
   };
 
-  const renderStatsCard = (icon: any, title: string, value: string | number, color: string) => (
-    <View style={styles.statsCard}>
+  const renderStatsCard = (icon: any, title: string, value: string | number, color: string, onPress?: () => void) => (
+    <Pressable style={styles.statsCard} onPress={onPress}>
       <View style={[styles.statsIcon, { backgroundColor: color }]}>
         {React.createElement(icon, { size: 24, color: 'white' })}
       </View>
       <Text style={styles.statsValue}>{value}</Text>
       <Text style={styles.statsTitle}>{title}</Text>
-    </View>
+    </Pressable>
   );
 
   const getGreeting = () => {
@@ -129,6 +196,16 @@ export default function HomeScreen() {
     if (hour < 15) return 'Selamat Siang';
     if (hour < 18) return 'Selamat Sore';
     return 'Selamat Malam';
+  };
+
+  const getRoleName = (role: string) => {
+    switch (role) {
+      case 'siswa': return 'Siswa';
+      case 'guru': return 'Guru';
+      case 'ortu': return 'Orang Tua';
+      case 'admin': return 'Administrator';
+      default: return role;
+    }
   };
 
   return (
@@ -147,11 +224,7 @@ export default function HomeScreen() {
           <View>
             <Text style={styles.greeting}>{getGreeting()}</Text>
             <Text style={styles.userName}>{profile?.name}</Text>
-            <Text style={styles.userRole}>
-              {profile?.role === 'siswa' ? 'Siswa' :
-               profile?.role === 'guru' ? 'Guru' :
-               profile?.role === 'ortu' ? 'Orang Tua' : 'Admin'}
-            </Text>
+            <Text style={styles.userRole}>{getRoleName(profile?.role || '')}</Text>
           </View>
           <View style={styles.headerIcon}>
             <BookOpen size={32} color="white" />
@@ -165,19 +238,48 @@ export default function HomeScreen() {
           {profile?.role === 'siswa' && (
             <>
               {renderStatsCard(TrendingUp, 'Total Poin', stats.totalPoin || 0, '#3B82F6')}
-              {renderStatsCard(BookOpen, 'Setoran', stats.totalSetoran || 0, '#10B981')}
+              {renderStatsCard(BookOpen, 'Setoran Diterima', stats.setoranDiterima || 0, '#10B981')}
               {renderStatsCard(Award, 'Label Juz', stats.labelCount || 0, '#F59E0B')}
             </>
           )}
           
           {profile?.role === 'guru' && (
             <>
-              {renderStatsCard(Calendar, 'Menunggu Penilaian', stats.setoranPending || 0, '#EF4444')}
+              {renderStatsCard(Clock, 'Menunggu Penilaian', stats.setoranPending || 0, '#EF4444', () => router.push('/(tabs)/penilaian'))}
               {renderStatsCard(Users, 'Total Siswa', stats.totalSiswa || 0, '#10B981')}
               {renderStatsCard(Award, 'Kelas Aktif', 1, '#3B82F6')}
             </>
           )}
+
+          {profile?.role === 'ortu' && (
+            <>
+              {renderStatsCard(TrendingUp, 'Poin Anak', stats.totalPoin || 0, '#3B82F6')}
+              {renderStatsCard(BookOpen, 'Setoran Diterima', stats.setoranDiterima || 0, '#10B981')}
+              {renderStatsCard(Clock, 'Menunggu Penilaian', stats.setoranPending || 0, '#F59E0B')}
+            </>
+          )}
         </View>
+
+        {/* Progress Cards for Students */}
+        {profile?.role === 'siswa' && (
+          <View style={styles.progressSection}>
+            <Text style={styles.sectionTitle}>Progress Pembelajaran</Text>
+            <View style={styles.progressCards}>
+              <View style={styles.progressCard}>
+                <BookOpen size={20} color="#10B981" />
+                <Text style={styles.progressTitle}>Hafalan</Text>
+                <Text style={styles.progressNumber}>{stats.hafalanProgress || 0}</Text>
+                <Text style={styles.progressLabel}>Setoran Diterima</Text>
+              </View>
+              <View style={styles.progressCard}>
+                <Target size={20} color="#3B82F6" />
+                <Text style={styles.progressTitle}>Murojaah</Text>
+                <Text style={styles.progressNumber}>{stats.murojaahProgress || 0}</Text>
+                <Text style={styles.progressLabel}>Setoran Diterima</Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Quick Actions */}
         <View style={styles.section}>
@@ -185,11 +287,17 @@ export default function HomeScreen() {
           <View style={styles.quickActions}>
             {profile?.role === 'siswa' && (
               <>
-                <Pressable style={[styles.actionCard, { backgroundColor: '#10B981' }]}>
-                  <BookOpen size={24} color="white" />
+                <Pressable 
+                  style={[styles.actionCard, { backgroundColor: '#10B981' }]}
+                  onPress={() => router.push('/(tabs)/setoran')}
+                >
+                  <PlusCircle size={24} color="white" />
                   <Text style={styles.actionText}>Setoran Baru</Text>
                 </Pressable>
-                <Pressable style={[styles.actionCard, { backgroundColor: '#3B82F6' }]}>
+                <Pressable 
+                  style={[styles.actionCard, { backgroundColor: '#3B82F6' }]}
+                  onPress={() => router.push('/(tabs)/quiz')}
+                >
                   <Trophy size={24} color="white" />
                   <Text style={styles.actionText}>Ikuti Quiz</Text>
                 </Pressable>
@@ -198,17 +306,88 @@ export default function HomeScreen() {
             
             {profile?.role === 'guru' && (
               <>
-                <Pressable style={[styles.actionCard, { backgroundColor: '#EF4444' }]}>
+                <Pressable 
+                  style={[styles.actionCard, { backgroundColor: '#EF4444' }]}
+                  onPress={() => router.push('/(tabs)/penilaian')}
+                >
                   <Award size={24} color="white" />
                   <Text style={styles.actionText}>Nilai Setoran</Text>
                 </Pressable>
-                <Pressable style={[styles.actionCard, { backgroundColor: '#8B5CF6' }]}>
+                <Pressable 
+                  style={[styles.actionCard, { backgroundColor: '#8B5CF6' }]}
+                  onPress={() => router.push('/(tabs)/organize')}
+                >
                   <Users size={24} color="white" />
                   <Text style={styles.actionText}>Kelola Kelas</Text>
                 </Pressable>
               </>
             )}
+
+            {profile?.role === 'ortu' && (
+              <>
+                <Pressable 
+                  style={[styles.actionCard, { backgroundColor: '#8B5CF6' }]}
+                  onPress={() => router.push('/(tabs)/monitoring')}
+                >
+                  <Users size={24} color="white" />
+                  <Text style={styles.actionText}>Lihat Progress</Text>
+                </Pressable>
+                <Pressable 
+                  style={[styles.actionCard, { backgroundColor: '#10B981' }]}
+                  onPress={() => router.push('/(tabs)/quran')}
+                >
+                  <BookOpen size={24} color="white" />
+                  <Text style={styles.actionText}>Baca Quran</Text>
+                </Pressable>
+              </>
+            )}
           </View>
+        </View>
+
+        {/* Recent Activity */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Aktivitas Terbaru</Text>
+          {stats.recentActivity && stats.recentActivity.length > 0 ? (
+            <View style={styles.activityList}>
+              {stats.recentActivity.map((activity, index) => (
+                <View key={activity.id || index} style={styles.activityCard}>
+                  <View style={styles.activityIcon}>
+                    <BookOpen size={16} color="#10B981" />
+                  </View>
+                  <View style={styles.activityInfo}>
+                    <Text style={styles.activityTitle}>
+                      {profile?.role === 'guru' ? 
+                        `${activity.siswa?.name} - ${activity.jenis === 'hafalan' ? 'Hafalan' : 'Murojaah'} ${activity.surah}` :
+                        `${activity.jenis === 'hafalan' ? 'Hafalan' : 'Murojaah'} ${activity.surah}`
+                      }
+                    </Text>
+                    <Text style={styles.activityDate}>
+                      {new Date(activity.tanggal || activity.created_at).toLocaleDateString('id-ID')}
+                    </Text>
+                  </View>
+                  <View style={[
+                    styles.activityStatus,
+                    { backgroundColor: activity.status === 'diterima' ? '#DCFCE7' : 
+                                     activity.status === 'pending' ? '#FEF3C7' : '#FEE2E2' }
+                  ]}>
+                    <Text style={[
+                      styles.activityStatusText,
+                      { color: activity.status === 'diterima' ? '#10B981' : 
+                               activity.status === 'pending' ? '#F59E0B' : '#EF4444' }
+                    ]}>
+                      {activity.status === 'pending' ? 'Menunggu' : 
+                       activity.status === 'diterima' ? 'Diterima' : 'Ditolak'}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyActivity}>
+              <Calendar size={32} color="#9CA3AF" />
+              <Text style={styles.emptyActivityText}>Belum ada aktivitas</Text>
+            </View>
+          )}
         </View>
 
         {/* Today's Quote */}
@@ -304,6 +483,41 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
   },
+  progressSection: {
+    marginBottom: 24,
+  },
+  progressCards: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  progressCard: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  progressTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  progressNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#10B981',
+  },
+  progressLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
   section: {
     marginBottom: 24,
   },
@@ -329,6 +543,63 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  activityList: {
+    gap: 8,
+  },
+  activityCard: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  activityIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F0FDF4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityInfo: {
+    flex: 1,
+  },
+  activityTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  activityDate: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  activityStatus: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  activityStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  emptyActivity: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 32,
+    alignItems: 'center',
+  },
+  emptyActivityText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 12,
   },
   quoteCard: {
     backgroundColor: 'white',

@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
 import { Tabs, router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
-import { Chrome as Home, BookOpen, Trophy, Users, User, CirclePlus as PlusCircle, Settings } from 'lucide-react-native';
+import { Home, BookOpen, Trophy, Users, User, PlusCircle, Settings, Monitor } from 'lucide-react-native';
 
 export default function TabsLayout() {
-const { user, profile, loading } = useAuth();
-const role = profile?.role;
+  const { user, profile, loading } = useAuth();
+  const role = profile?.role;
 
   useEffect(() => {
     if (!loading && !user) {
@@ -16,7 +16,6 @@ const role = profile?.role;
   if (loading || !user || !role) {
     return null;
   }
-
 
   // Different tabs based on user role
   const getTabsForRole = () => {
@@ -46,6 +45,16 @@ const role = profile?.role;
             name: 'quiz',
             title: 'Quiz',
             icon: Trophy,
+          },
+          {
+            name: 'leaderboard',
+            title: 'Leaderboard',
+            icon: Trophy,
+          },
+          {
+            name: 'join-organize',
+            title: 'Gabung Kelas',
+            icon: Users,
           },
           {
             name: 'profile',
@@ -78,7 +87,7 @@ const role = profile?.role;
           {
             name: 'monitoring',
             title: 'Monitoring',
-            icon: Trophy,
+            icon: Monitor,
           },
           {
             name: 'profile',

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Clock, CircleCheck as CheckCircle, Circle as XCircle, FileAudio, User, Calendar } from 'lucide-react-native';
+import { Clock, CheckCircle, XCircle, FileAudio, User, Calendar, Play, Pause } from 'lucide-react-native';
 
 interface SetoranPenilaian {
   id: string;
@@ -10,6 +10,8 @@ interface SetoranPenilaian {
   jenis: 'hafalan' | 'murojaah';
   surah: string;
   juz: number;
+  ayat_mulai?: number;
+  ayat_selesai?: number;
   tanggal: string;
   status: 'pending' | 'diterima' | 'ditolak';
   catatan?: string;
@@ -25,6 +27,7 @@ export default function PenilaianScreen() {
   const [selectedSetoran, setSelectedSetoran] = useState<SetoranPenilaian | null>(null);
   const [catatan, setCatatan] = useState('');
   const [poin, setPoin] = useState('');
+  const [isPlaying, setIsPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchSetoranPending = async () => {
@@ -57,9 +60,9 @@ export default function PenilaianScreen() {
   const handlePenilaian = async (status: 'diterima' | 'ditolak') => {
     if (!selectedSetoran) return;
 
-    try {
-      const poinValue = status === 'diterima' ? parseInt(poin) || 0 : 0;
+    const poinValue = status === 'diterima' ? parseInt(poin) || 10 : 0;
 
+    try {
       // Update setoran status
       const { error } = await supabase
         .from('setoran')
@@ -92,6 +95,16 @@ export default function PenilaianScreen() {
               poin_hafalan: currentPoints.poin_hafalan + poinValue,
             })
             .eq('siswa_id', selectedSetoran.siswa_id);
+        } else {
+          // Create new points record
+          await supabase
+            .from('siswa_poin')
+            .insert([{
+              siswa_id: selectedSetoran.siswa_id,
+              total_poin: poinValue,
+              poin_hafalan: poinValue,
+              poin_quiz: 0,
+            }]);
         }
 
         // Check if student completed a juz (auto label)
@@ -100,7 +113,7 @@ export default function PenilaianScreen() {
         }
       }
 
-      Alert.alert('Sukses', `Setoran ${status === 'diterima' ? 'diterima' : 'ditolak'}`);
+      Alert.alert('Sukses', `Setoran ${status === 'diterima' ? 'diterima' : 'ditolak'} dan poin telah diperbarui!`);
       setSelectedSetoran(null);
       setCatatan('');
       setPoin('');
@@ -128,12 +141,18 @@ export default function PenilaianScreen() {
             siswa_id: siswaId,
             juz: juz,
             diberikan_oleh: profile?.id,
-            keterangan: `Juz ${juz} selesai`,
+            keterangan: `Juz ${juz} selesai - Hafalan diterima`,
           }]);
       }
     } catch (error) {
       console.error('Error creating label:', error);
     }
+  };
+
+  const playAudio = () => {
+    // In real app, implement audio player
+    setIsPlaying(!isPlaying);
+    Alert.alert('Audio Player', 'Fitur pemutar audio akan diimplementasikan');
   };
 
   useEffect(() => {
@@ -156,7 +175,12 @@ export default function PenilaianScreen() {
             <Text style={styles.setoranInfo}>
               {selectedSetoran.jenis === 'hafalan' ? 'Hafalan' : 'Murojaah'} - {selectedSetoran.surah}
             </Text>
-            <Text style={styles.setoranJuz}>Juz {selectedSetoran.juz}</Text>
+            <Text style={styles.setoranJuz}>
+              Juz {selectedSetoran.juz}
+              {selectedSetoran.ayat_mulai && selectedSetoran.ayat_selesai && 
+                ` • Ayat ${selectedSetoran.ayat_mulai}-${selectedSetoran.ayat_selesai}`
+              }
+            </Text>
             <Text style={styles.setoranDateLabel}>
               {new Date(selectedSetoran.tanggal).toLocaleDateString('id-ID')}
             </Text>
@@ -164,9 +188,16 @@ export default function PenilaianScreen() {
 
           <View style={styles.audioSection}>
             <FileAudio size={24} color="#10B981" />
-            <Text style={styles.audioText}>File Audio Tersedia</Text>
-            <Pressable style={styles.playButton}>
-              <Text style={styles.playButtonText}>Putar Audio</Text>
+            <Text style={styles.audioText}>File Audio Setoran</Text>
+            <Pressable style={styles.playButton} onPress={playAudio}>
+              {isPlaying ? (
+                <Pause size={16} color="white" />
+              ) : (
+                <Play size={16} color="white" />
+              )}
+              <Text style={styles.playButtonText}>
+                {isPlaying ? 'Pause' : 'Putar Audio'}
+              </Text>
             </Pressable>
           </View>
 
@@ -181,10 +212,10 @@ export default function PenilaianScreen() {
               numberOfLines={4}
             />
 
-            <Text style={styles.formLabel}>Poin (opsional)</Text>
+            <Text style={styles.formLabel}>Poin (default: 10)</Text>
             <TextInput
               style={styles.poinInput}
-              placeholder="0"
+              placeholder="10"
               value={poin}
               onChangeText={setPoin}
               keyboardType="numeric"
@@ -245,7 +276,7 @@ export default function PenilaianScreen() {
                     <User size={16} color="#6B7280" />
                     <Text style={styles.siswaNameText}>{setoran.siswa.name}</Text>
                   </View>
-                  <View style={styles.setoranType}>
+                  <View style={[styles.setoranType, { backgroundColor: setoran.jenis === 'hafalan' ? '#10B981' : '#3B82F6' }]}>
                     <Text style={styles.setoranTypeText}>
                       {setoran.jenis === 'hafalan' ? 'Hafalan' : 'Murojaah'}
                     </Text>
@@ -253,7 +284,12 @@ export default function PenilaianScreen() {
                 </View>
 
                 <Text style={styles.setoranTitle}>{setoran.surah}</Text>
-                <Text style={styles.setoranJuzText}>Juz {setoran.juz}</Text>
+                <Text style={styles.setoranJuzText}>
+                  Juz {setoran.juz}
+                  {setoran.ayat_mulai && setoran.ayat_selesai && 
+                    ` • Ayat ${setoran.ayat_mulai}-${setoran.ayat_selesai}`
+                  }
+                </Text>
 
                 <View style={styles.setoranFooter}>
                   <View style={styles.setoranDate}>
@@ -266,6 +302,11 @@ export default function PenilaianScreen() {
                     <Clock size={12} color="#F59E0B" />
                     <Text style={styles.pendingText}>Menunggu</Text>
                   </View>
+                </View>
+
+                <View style={styles.audioPreview}>
+                  <FileAudio size={14} color="#10B981" />
+                  <Text style={styles.audioPreviewText}>Klik untuk mendengar & nilai</Text>
                 </View>
               </Pressable>
             ))}
@@ -351,7 +392,6 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   setoranType: {
-    backgroundColor: '#3B82F6',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
@@ -376,6 +416,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 8,
   },
   setoranDate: {
     flexDirection: 'row',
@@ -398,6 +439,19 @@ const styles = StyleSheet.create({
   pendingText: {
     fontSize: 12,
     color: '#F59E0B',
+    fontWeight: '600',
+  },
+  audioPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F0FDF4',
+    padding: 8,
+    borderRadius: 6,
+  },
+  audioPreviewText: {
+    fontSize: 12,
+    color: '#10B981',
     fontWeight: '600',
   },
   // Penilaian Detail Styles
@@ -476,6 +530,9 @@ const styles = StyleSheet.create({
   },
   playButton: {
     backgroundColor: '#10B981',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
