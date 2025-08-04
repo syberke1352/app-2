@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert } from 
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { StudentDetailModal } from '@/components/StudentDetailModal';
-import { Users, Plus, Settings, UserPlus, Copy, Eye, Calendar, BarChart3 } from 'lucide-react-native';
+import { Users, Plus, Settings, UserPlus, Copy, Eye, Calendar, ChartBar as BarChart3 } from 'lucide-react-native';
 
 interface OrganizeData {
   id: string;

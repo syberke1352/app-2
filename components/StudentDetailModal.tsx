@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Modal } from 'react-native';
 import { supabase } from '@/lib/supabase';
-import { X, User, BookOpen, Target, Award, Edit, Save, Play, FileAudio } from 'lucide-react-native';
+import { X, User, BookOpen, Target, Award, CreditCard as Edit, Save, Play, FileAudio } from 'lucide-react-native';
 
 interface StudentDetailModalProps {
   visible: boolean;

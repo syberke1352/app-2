@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, TextInput } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { User, TrendingUp, BookOpen, Award, Calendar, Target, XCircle, Clock, CircleCheck as CheckCircle, Search, BarChart3 } from 'lucide-react-native';
+import { User, TrendingUp, BookOpen, Award, Calendar, Target, Circle as XCircle, Clock, CircleCheck as CheckCircle, Search, ChartBar as BarChart3 } from 'lucide-react-native';
 
 interface ChildProgress {
   id: string;

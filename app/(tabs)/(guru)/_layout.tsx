@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, BookOpen, Trophy, ClipboardCheck, GraduationCap, User, Plus } from 'lucide-react-native';
+import { Chrome as Home, BookOpen, Trophy, ClipboardCheck, GraduationCap, User, Plus } from 'lucide-react-native';
 
 export default function GuruTabsLayout() {
   return (

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Plus, Edit, Trash2, Brain, Target, Award } from 'lucide-react-native';
+import { Plus, CreditCard as Edit, Trash2, Brain, Target, Award } from 'lucide-react-native';
 
 interface Quiz {
   id: string;
