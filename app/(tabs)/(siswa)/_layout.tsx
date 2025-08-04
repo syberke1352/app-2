@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, BookOpen, Trophy, CloudUpload, ListChecks, HousePlus, User } from 'lucide-react-native';
+import { Chrome as Home, BookOpen, Trophy, CloudUpload, ListChecks, HousePlus, User } from 'lucide-react-native';
 
 export default function SiswaTabsLayout() {
   return (
