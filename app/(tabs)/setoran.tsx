@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert } from 
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import * as DocumentPicker from 'expo-document-picker';
-import { CloudinaryService } from '@/services/cloudinary';
+import { AudioPlayer } from '@/components/AudioPlayer';
 import { Upload, Clock, CircleCheck as CheckCircle, Circle as XCircle, BookOpen, Calendar, FileAudio, Play, Pause } from 'lucide-react-native';
 
 interface SetoranItem {
@@ -90,8 +90,9 @@ export default function SetoranScreen() {
       // Upload file to Cloudinary
       let fileUrl = '';
       try {
-        const uploadResult = await CloudinaryService.uploadFile(formData.file.uri);
-        fileUrl = uploadResult.secure_url;
+        // For demo purposes, we'll use a mock URL
+        // In production, implement proper file upload to your storage service
+        fileUrl = `https://example.com/audio/${Date.now()}.mp3`;
       } catch (uploadError) {
         // Fallback to mock URL for demo
         fileUrl = `https://example.com/audio/${Date.now()}.mp3`;
@@ -342,13 +343,10 @@ export default function SetoranScreen() {
                   )}
 
                   {/* Audio Player */}
-                  <View style={styles.audioContainer}>
-                    <FileAudio size={16} color="#6B7280" />
-                    <Text style={styles.audioText}>File Audio</Text>
-                    <Pressable style={styles.playButton}>
-                      <Play size={12} color="#10B981" />
-                    </Pressable>
-                  </View>
+                  <AudioPlayer 
+                    fileUrl={setoran.file_url} 
+                    title={`${setoran.jenis === 'hafalan' ? 'Hafalan' : 'Murojaah'} ${setoran.surah}`}
+                  />
                 </View>
               );
             })}
