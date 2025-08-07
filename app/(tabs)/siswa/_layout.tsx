@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { BookOpen, CloudUpload, Home, HousePlus, ListChecks, Trophy, User } from 'lucide-react-native';
+import { BookOpen, CloudUpload, Chrome as Home, HousePlus, ListChecks, Trophy, User } from 'lucide-react-native';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
