@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Users, Plus, Settings, UserPlus, Copy, Eye, Calendar } from 'lucide-react-native';
+import { StudentDetailModal } from '@/components/StudentDetailModal';
+import { Users, Plus, Settings, UserPlus, Copy, Eye, Calendar, ChartBar as BarChart3 } from 'lucide-react-native';
 
 interface OrganizeData {
   id: string;
@@ -20,11 +21,29 @@ interface StudentData {
   created_at: string;
 }
 
+interface OrganizeStats {
+  totalStudents: number;
+  totalSetoran: number;
+  pendingSetoran: number;
+  totalPoints: number;
+  averageAccuracy: number;
+}
+
 export default function OrganizeScreen() {
   const { profile } = useAuth();
   const [organize, setOrganize] = useState<OrganizeData | null>(null);
   const [students, setStudents] = useState<StudentData[]>([]);
+  const [stats, setStats] = useState<OrganizeStats>({
+    totalStudents: 0,
+    totalSetoran: 0,
+    pendingSetoran: 0,
+    totalPoints: 0,
+    averageAccuracy: 0,
+  });
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [selectedStudentName, setSelectedStudentName] = useState<string>('');
+  const [showStudentDetail, setShowStudentDetail] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -50,6 +69,7 @@ export default function OrganizeScreen() {
 
         setOrganize(organizeData);
         await fetchStudents(profile.organize_id);
+        await fetchOrganizeStats(profile.organize_id);
       }
     } catch (error) {
       console.error('Error in fetchOrganize:', error);
@@ -75,6 +95,62 @@ export default function OrganizeScreen() {
       setStudents(data || []);
     } catch (error) {
       console.error('Error in fetchStudents:', error);
+    }
+  };
+
+  const fetchOrganizeStats = async (organizeId: string) => {
+    try {
+      // Get all setoran in organize
+      const { data: setoranData } = await supabase
+        .from('setoran')
+        .select('*')
+        .eq('organize_id', organizeId);
+
+      // Get all student points in organize
+      const { data: studentsInOrganize } = await supabase
+        .from('users')
+        .select('id')
+        .eq('organize_id', organizeId)
+        .eq('role', 'siswa');
+
+      let totalPoints = 0;
+      let totalAccuracy = 0;
+      let studentsWithData = 0;
+
+      if (studentsInOrganize) {
+        for (const student of studentsInOrganize) {
+          const { data: pointsData } = await supabase
+            .from('siswa_poin')
+            .select('total_poin')
+            .eq('siswa_id', student.id)
+            .single();
+
+          if (pointsData) {
+            totalPoints += pointsData.total_poin;
+          }
+
+          // Calculate accuracy for this student
+          const studentSetoran = setoranData?.filter(s => s.siswa_id === student.id) || [];
+          if (studentSetoran.length > 0) {
+            const accepted = studentSetoran.filter(s => s.status === 'diterima').length;
+            const accuracy = (accepted / studentSetoran.length) * 100;
+            totalAccuracy += accuracy;
+            studentsWithData++;
+          }
+        }
+      }
+
+      const averageAccuracy = studentsWithData > 0 ? Math.round(totalAccuracy / studentsWithData) : 0;
+
+      setStats({
+        totalStudents: students.length,
+        totalSetoran: setoranData?.length || 0,
+        pendingSetoran: setoranData?.filter(s => s.status === 'pending').length || 0,
+        totalPoints,
+        averageAccuracy,
+      });
+    } catch (error) {
+      console.error('Error fetching organize stats:', error);
     }
   };
 
@@ -124,9 +200,14 @@ export default function OrganizeScreen() {
 
   const copyClassCode = () => {
     if (organize?.code) {
-      // In real app, copy to clipboard
-      Alert.alert('Kode Disalin', `Kode kelas: ${organize.code}`);
+      Alert.alert('Kode Disalin', `Kode kelas: ${organize.code}\n\nBagikan kode ini kepada siswa untuk bergabung`);
     }
+  };
+
+  const viewStudentDetail = (studentId: string, studentName: string) => {
+    setSelectedStudentId(studentId);
+    setSelectedStudentName(studentName);
+    setShowStudentDetail(true);
   };
 
   useEffect(() => {
@@ -206,95 +287,131 @@ export default function OrganizeScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Users size={32} color="#3B82F6" />
-        <Text style={styles.headerTitle}>Kelola Kelas</Text>
-        <Text style={styles.headerSubtitle}>{organize.name}</Text>
-      </View>
-
-      {/* Class Info */}
-      <View style={styles.classInfoCard}>
-        <View style={styles.classHeader}>
-          <Text style={styles.className}>{organize.name}</Text>
-          <Pressable style={styles.settingsButton}>
-            <Settings size={20} color="#6B7280" />
-          </Pressable>
+    <>
+      <ScrollView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Users size={32} color="#3B82F6" />
+          <Text style={styles.headerTitle}>Kelola Kelas</Text>
+          <Text style={styles.headerSubtitle}>{organize.name}</Text>
         </View>
-        
-        {organize.description && (
-          <Text style={styles.classDescription}>{organize.description}</Text>
-        )}
 
-        <View style={styles.classStats}>
-          <View style={styles.statItem}>
-            <Users size={16} color="#3B82F6" />
-            <Text style={styles.statText}>{students.length} Siswa</Text>
+        {/* Class Statistics */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <Users size={20} color="#3B82F6" />
+            <Text style={styles.statNumber}>{stats.totalStudents}</Text>
+            <Text style={styles.statLabel}>Total Siswa</Text>
           </View>
-          <View style={styles.statItem}>
-            <Calendar size={16} color="#6B7280" />
-            <Text style={styles.statText}>
-              Dibuat {new Date(organize.created_at).toLocaleDateString('id-ID')}
-            </Text>
+          <View style={styles.statCard}>
+            <BarChart3 size={20} color="#10B981" />
+            <Text style={styles.statNumber}>{stats.totalSetoran}</Text>
+            <Text style={styles.statLabel}>Total Setoran</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Calendar size={20} color="#F59E0B" />
+            <Text style={styles.statNumber}>{stats.pendingSetoran}</Text>
+            <Text style={styles.statLabel}>Menunggu</Text>
           </View>
         </View>
 
-        <View style={styles.classCodeContainer}>
-          <View style={styles.classCodeInfo}>
-            <Text style={styles.classCodeLabel}>Kode Kelas</Text>
-            <Text style={styles.classCode}>{organize.code}</Text>
+        {/* Class Info */}
+        <View style={styles.classInfoCard}>
+          <View style={styles.classHeader}>
+            <Text style={styles.className}>{organize.name}</Text>
+            <Pressable style={styles.settingsButton}>
+              <Settings size={20} color="#6B7280" />
+            </Pressable>
           </View>
-          <Pressable style={styles.copyButton} onPress={copyClassCode}>
-            <Copy size={16} color="#10B981" />
-          </Pressable>
-        </View>
-      </View>
+          
+          {organize.description && (
+            <Text style={styles.classDescription}>{organize.description}</Text>
+          )}
 
-      {/* Students List */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Daftar Siswa</Text>
-          <Pressable style={styles.addStudentButton}>
-            <UserPlus size={16} color="#3B82F6" />
-          </Pressable>
-        </View>
-
-        {students.length === 0 ? (
-          <View style={styles.emptyStudents}>
-            <UserPlus size={48} color="#9CA3AF" />
-            <Text style={styles.emptyStudentsText}>Belum ada siswa</Text>
-            <Text style={styles.emptyStudentsSubtext}>
-              Bagikan kode kelas untuk mengundang siswa
-            </Text>
+          <View style={styles.classStats}>
+            <View style={styles.statItem}>
+              <Users size={16} color="#3B82F6" />
+              <Text style={styles.statText}>{students.length} Siswa</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Calendar size={16} color="#6B7280" />
+              <Text style={styles.statText}>
+                Dibuat {new Date(organize.created_at).toLocaleDateString('id-ID')}
+              </Text>
+            </View>
+            <View style={styles.statItem}>
+              <BarChart3 size={16} color="#10B981" />
+              <Text style={styles.statText}>Akurasi Rata-rata: {stats.averageAccuracy}%</Text>
+            </View>
           </View>
-        ) : (
-          <View style={styles.studentsList}>
-            {students.map((student) => (
-              <View key={student.id} style={styles.studentCard}>
-                <View style={styles.studentAvatar}>
-                  <Text style={styles.studentInitial}>
-                    {student.name.charAt(0).toUpperCase()}
-                  </Text>
+
+          <View style={styles.classCodeContainer}>
+            <View style={styles.classCodeInfo}>
+              <Text style={styles.classCodeLabel}>Kode Kelas</Text>
+              <Text style={styles.classCode}>{organize.code}</Text>
+            </View>
+            <Pressable style={styles.copyButton} onPress={copyClassCode}>
+              <Copy size={16} color="#10B981" />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Students List */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Daftar Siswa ({students.length})</Text>
+            <Pressable style={styles.addStudentButton}>
+              <UserPlus size={16} color="#3B82F6" />
+            </Pressable>
+          </View>
+
+          {students.length === 0 ? (
+            <View style={styles.emptyStudents}>
+              <UserPlus size={48} color="#9CA3AF" />
+              <Text style={styles.emptyStudentsText}>Belum ada siswa</Text>
+              <Text style={styles.emptyStudentsSubtext}>
+                Bagikan kode kelas untuk mengundang siswa
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.studentsList}>
+              {students.map((student) => (
+                <View key={student.id} style={styles.studentCard}>
+                  <View style={styles.studentAvatar}>
+                    <Text style={styles.studentInitial}>
+                      {student.name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.studentInfo}>
+                    <Text style={styles.studentName}>{student.name}</Text>
+                    <Text style={styles.studentEmail}>{student.email}</Text>
+                    <Text style={styles.joinDate}>
+                      Bergabung {new Date(student.created_at).toLocaleDateString('id-ID')}
+                    </Text>
+                  </View>
+
+                  <Pressable 
+                    style={styles.viewButton}
+                    onPress={() => viewStudentDetail(student.id, student.name)}
+                  >
+                    <Eye size={16} color="#6B7280" />
+                  </Pressable>
                 </View>
-                
-                <View style={styles.studentInfo}>
-                  <Text style={styles.studentName}>{student.name}</Text>
-                  <Text style={styles.studentEmail}>{student.email}</Text>
-                  <Text style={styles.joinDate}>
-                    Bergabung {new Date(student.created_at).toLocaleDateString('id-ID')}
-                  </Text>
-                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      </ScrollView>
 
-                <Pressable style={styles.viewButton}>
-                  <Eye size={16} color="#6B7280" />
-                </Pressable>
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
-    </ScrollView>
+      <StudentDetailModal
+        visible={showStudentDetail}
+        studentId={selectedStudentId}
+        studentName={selectedStudentName}
+        onClose={() => setShowStudentDetail(false)}
+        isTeacher={true}
+      />
+    </>
   );
 }
 
@@ -326,6 +443,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     marginTop: 4,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
   },
   noOrganizeContainer: {
     flex: 1,
@@ -455,14 +600,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   classStats: {
-    flexDirection: 'row',
-    gap: 16,
+    gap: 8,
     marginBottom: 16,
   },
   statItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
   },
   statText: {
     fontSize: 14,

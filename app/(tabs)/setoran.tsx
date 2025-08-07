@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Dimensions } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import * as DocumentPicker from 'expo-document-picker';
-import { AudioPlayer } from '@/components/AudioPlayer';
+import { CloudinaryService } from '@/services/cloudinary';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Upload, Clock, CircleCheck as CheckCircle, Circle as XCircle, BookOpen, Calendar, FileAudio, Play, Pause } from 'lucide-react-native';
+
+const { width, height } = Dimensions.get('window');
 
 interface SetoranItem {
   id: string;
@@ -22,6 +25,7 @@ interface SetoranItem {
 
 export default function SetoranScreen() {
   const { profile } = useAuth();
+  const insets = useSafeAreaInsets();
   const [mySetoran, setMySetoran] = useState<SetoranItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -90,9 +94,8 @@ export default function SetoranScreen() {
       // Upload file to Cloudinary
       let fileUrl = '';
       try {
-        // For demo purposes, we'll use a mock URL
-        // In production, implement proper file upload to your storage service
-        fileUrl = `https://example.com/audio/${Date.now()}.mp3`;
+        const uploadResult = await CloudinaryService.uploadFile(formData.file.uri);
+        fileUrl = uploadResult.secure_url;
       } catch (uploadError) {
         // Fallback to mock URL for demo
         fileUrl = `https://example.com/audio/${Date.now()}.mp3`;
@@ -169,7 +172,7 @@ export default function SetoranScreen() {
   return (
     <ScrollView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <BookOpen size={32} color="#10B981" />
         <Text style={styles.headerTitle}>Setoran Hafalan</Text>
         <Text style={styles.headerSubtitle}>Upload dan pantau setoran Anda</Text>
@@ -343,10 +346,13 @@ export default function SetoranScreen() {
                   )}
 
                   {/* Audio Player */}
-                  <AudioPlayer 
-                    fileUrl={setoran.file_url} 
-                    title={`${setoran.jenis === 'hafalan' ? 'Hafalan' : 'Murojaah'} ${setoran.surah}`}
-                  />
+                  <View style={styles.audioContainer}>
+                    <FileAudio size={16} color="#6B7280" />
+                    <Text style={styles.audioText}>File Audio</Text>
+                    <Pressable style={styles.playButton}>
+                      <Play size={12} color="#10B981" />
+                    </Pressable>
+                  </View>
                 </View>
               );
             })}
@@ -364,33 +370,35 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: 'white',
-    padding: 24,
-    paddingTop: 60,
+    paddingHorizontal: Math.max(24, width * 0.05),
+    paddingBottom: 24,
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: Math.min(24, width * 0.06),
     fontWeight: 'bold',
     color: '#1F2937',
     marginTop: 8,
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: Math.min(14, width * 0.035),
     color: '#6B7280',
     marginTop: 4,
+    textAlign: 'center',
   },
   statsContainer: {
     flexDirection: 'row',
-    padding: 16,
-    gap: 12,
+    paddingHorizontal: Math.max(16, width * 0.04),
+    paddingVertical: 16,
+    gap: Math.max(8, width * 0.02),
   },
   statCard: {
     flex: 1,
     backgroundColor: 'white',
     borderRadius: 12,
-    padding: 16,
+    padding: Math.max(12, width * 0.03),
     alignItems: 'center',
     gap: 8,
     shadowColor: '#000',
@@ -400,34 +408,37 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   statNumber: {
-    fontSize: 20,
+    fontSize: Math.min(18, width * 0.045),
     fontWeight: 'bold',
     color: '#1F2937',
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: Math.min(11, width * 0.028),
     color: '#6B7280',
     textAlign: 'center',
   },
   addButton: {
     backgroundColor: '#10B981',
-    margin: 16,
-    padding: 16,
+    marginHorizontal: Math.max(16, width * 0.04),
+    marginVertical: 8,
+    padding: Math.max(14, width * 0.035),
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    minHeight: 56,
   },
   addButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: Math.min(16, width * 0.04),
     fontWeight: 'bold',
   },
   form: {
     backgroundColor: 'white',
-    margin: 16,
-    padding: 20,
+    marginHorizontal: Math.max(16, width * 0.04),
+    marginVertical: 8,
+    padding: Math.max(16, width * 0.04),
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -436,7 +447,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   formTitle: {
-    fontSize: 18,
+    fontSize: Math.min(18, width * 0.045),
     fontWeight: 'bold',
     color: '#1F2937',
     marginBottom: 16,
@@ -450,15 +461,17 @@ const styles = StyleSheet.create({
   },
   typeButton: {
     flex: 1,
-    padding: 8,
+    padding: Math.max(8, width * 0.02),
     borderRadius: 6,
     alignItems: 'center',
+    minHeight: 40,
+    justifyContent: 'center',
   },
   typeButtonActive: {
     backgroundColor: '#10B981',
   },
   typeButtonText: {
-    fontSize: 14,
+    fontSize: Math.min(14, width * 0.035),
     color: '#6B7280',
     fontWeight: '600',
   },
@@ -468,20 +481,21 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: '#F9FAFB',
     borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    padding: Math.max(12, width * 0.03),
+    fontSize: Math.min(16, width * 0.04),
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    minHeight: 48,
   },
   ayatContainer: {
     flexDirection: 'row',
-    gap: 8,
+    gap: Math.max(8, width * 0.02),
   },
   fileButton: {
     backgroundColor: '#F9FAFB',
     borderRadius: 8,
-    padding: 16,
+    padding: Math.max(12, width * 0.03),
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -489,33 +503,39 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderStyle: 'dashed',
+    minHeight: 56,
   },
   fileButtonText: {
-    fontSize: 16,
+    fontSize: Math.min(15, width * 0.038),
     color: '#6B7280',
     flex: 1,
   },
   formActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: Math.max(8, width * 0.02),
   },
   cancelButton: {
     flex: 1,
-    padding: 12,
+    padding: Math.max(12, width * 0.03),
     borderRadius: 8,
     backgroundColor: '#F3F4F6',
     alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
   },
   cancelButtonText: {
     color: '#6B7280',
     fontWeight: '600',
+    fontSize: Math.min(14, width * 0.035),
   },
   submitButton: {
     flex: 2,
-    padding: 12,
+    padding: Math.max(12, width * 0.03),
     borderRadius: 8,
     backgroundColor: '#10B981',
     alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
   },
   submitButtonDisabled: {
     opacity: 0.6,
@@ -523,12 +543,14 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: 'white',
     fontWeight: 'bold',
+    fontSize: Math.min(14, width * 0.035),
   },
   section: {
-    margin: 16,
+    marginHorizontal: Math.max(16, width * 0.04),
+    marginVertical: 12,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: Math.min(18, width * 0.045),
     fontWeight: 'bold',
     color: '#1F2937',
     marginBottom: 16,
@@ -536,28 +558,28 @@ const styles = StyleSheet.create({
   emptyState: {
     backgroundColor: 'white',
     borderRadius: 12,
-    padding: 40,
+    padding: Math.max(32, width * 0.08),
     alignItems: 'center',
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: Math.min(16, width * 0.04),
     fontWeight: '600',
     color: '#6B7280',
     marginTop: 16,
   },
   emptySubtext: {
-    fontSize: 14,
+    fontSize: Math.min(14, width * 0.035),
     color: '#9CA3AF',
     textAlign: 'center',
     marginTop: 8,
   },
   setoranList: {
-    gap: 12,
+    gap: Math.max(8, width * 0.02),
   },
   setoranCard: {
     backgroundColor: 'white',
     borderRadius: 12,
-    padding: 16,
+    padding: Math.max(14, width * 0.035),
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -593,13 +615,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   setoranTitle: {
-    fontSize: 16,
+    fontSize: Math.min(16, width * 0.04),
     fontWeight: 'bold',
     color: '#1F2937',
     marginBottom: 4,
   },
   setoranDetails: {
-    fontSize: 14,
+    fontSize: Math.min(14, width * 0.035),
     color: '#6B7280',
     marginBottom: 12,
   },
@@ -608,6 +630,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    flexWrap: 'wrap',
+    gap: 8,
   },
   setoranDate: {
     flexDirection: 'row',
@@ -615,28 +639,28 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   setoranDateText: {
-    fontSize: 12,
+    fontSize: Math.min(12, width * 0.03),
     color: '#6B7280',
   },
   setoranPoin: {
-    fontSize: 12,
+    fontSize: Math.min(12, width * 0.03),
     fontWeight: 'bold',
     color: '#10B981',
   },
   catatanContainer: {
     backgroundColor: '#F9FAFB',
-    padding: 12,
+    padding: Math.max(10, width * 0.025),
     borderRadius: 8,
     marginBottom: 8,
   },
   catatanLabel: {
-    fontSize: 12,
+    fontSize: Math.min(12, width * 0.03),
     fontWeight: 'bold',
     color: '#6B7280',
     marginBottom: 4,
   },
   setoranCatatan: {
-    fontSize: 14,
+    fontSize: Math.min(14, width * 0.035),
     color: '#374151',
     fontStyle: 'italic',
   },
@@ -645,18 +669,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     backgroundColor: '#F9FAFB',
-    padding: 8,
+    padding: Math.max(8, width * 0.02),
     borderRadius: 6,
   },
   audioText: {
     flex: 1,
-    fontSize: 12,
+    fontSize: Math.min(12, width * 0.03),
     color: '#6B7280',
   },
   playButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: Math.min(28, width * 0.07),
+    height: Math.min(28, width * 0.07),
+    borderRadius: Math.min(14, width * 0.035),
     backgroundColor: '#DCFCE7',
     alignItems: 'center',
     justifyContent: 'center',

@@ -11,6 +11,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    flowType: 'pkce',
+    debug: __DEV__,
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'ngaji-app',
+    },
   },
 });
 

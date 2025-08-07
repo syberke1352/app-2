@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
-// import { Audio } from 'expo-av';
+import { Audio } from 'expo-av';
 import { Play, Pause, RotateCcw, Volume2 } from 'lucide-react-native';
 
 interface AudioPlayerProps {
@@ -9,7 +9,7 @@ interface AudioPlayerProps {
 }
 
 export function AudioPlayer({ fileUrl, title }: AudioPlayerProps) {
-  const [sound, setSound] = useState<any>(null);
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [duration, setDuration] = useState<number | null>(null);
@@ -18,7 +18,7 @@ export function AudioPlayer({ fileUrl, title }: AudioPlayerProps) {
   useEffect(() => {
     return sound
       ? () => {
-          // sound.unloadAsync();
+          sound.unloadAsync();
         }
       : undefined;
   }, [sound]);
@@ -26,34 +26,26 @@ export function AudioPlayer({ fileUrl, title }: AudioPlayerProps) {
   const loadAudio = async () => {
     try {
       setIsLoading(true);
-      // For demo purposes, we'll simulate audio loading
-      // In production, uncomment the Audio.Sound.createAsync code
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        { uri: fileUrl },
+        { shouldPlay: false }
+      );
       
-      // const { sound: newSound } = await Audio.Sound.createAsync(
-      //   { uri: fileUrl },
-      //   { shouldPlay: false }
-      // );
-      
-      // setSound(newSound);
+      setSound(newSound);
       
       // Get duration
-      // const status = await newSound.getStatusAsync();
-      // if (status.isLoaded) {
-      //   setDuration(status.durationMillis || null);
-      // }
+      const status = await newSound.getStatusAsync();
+      if (status.isLoaded) {
+        setDuration(status.durationMillis || null);
+      }
 
       // Set up position updates
-      // newSound.setOnPlaybackStatusUpdate((status) => {
-      //   if (status.isLoaded) {
-      //     setPosition(status.positionMillis || null);
-      //     setIsPlaying(status.isPlaying);
-      //   }
-      // });
-
-      // Demo simulation
-      setSound({ demo: true });
-      setDuration(180000); // 3 minutes demo
-      Alert.alert('Audio Player', 'Audio player loaded successfully!\n\nNote: This is a demo. In production, this will play the actual audio file.');
+      newSound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded) {
+          setPosition(status.positionMillis || null);
+          setIsPlaying(status.isPlaying);
+        }
+      });
 
     } catch (error) {
       Alert.alert('Error', 'Gagal memuat file audio');
@@ -70,28 +62,11 @@ export function AudioPlayer({ fileUrl, title }: AudioPlayerProps) {
         return;
       }
 
-      // Demo simulation
-      setIsPlaying(!isPlaying);
-      if (!isPlaying) {
-        // Simulate playback progress
-        const interval = setInterval(() => {
-          setPosition(prev => {
-            if (prev && prev >= (duration || 0)) {
-              clearInterval(interval);
-              setIsPlaying(false);
-              return 0;
-            }
-            return (prev || 0) + 1000;
-          });
-        }, 1000);
+      if (isPlaying) {
+        await sound.pauseAsync();
+      } else {
+        await sound.playAsync();
       }
-
-      // In production, use:
-      // if (isPlaying) {
-      //   await sound.pauseAsync();
-      // } else {
-      //   await sound.playAsync();
-      // }
     } catch (error) {
       Alert.alert('Error', 'Gagal memutar audio');
       console.error('Error playing audio:', error);
@@ -100,14 +75,10 @@ export function AudioPlayer({ fileUrl, title }: AudioPlayerProps) {
 
   const restart = async () => {
     try {
-      setPosition(0);
-      setIsPlaying(true);
-      
-      // In production, use:
-      // if (sound) {
-      //   await sound.setPositionAsync(0);
-      //   await sound.playAsync();
-      // }
+      if (sound) {
+        await sound.setPositionAsync(0);
+        await sound.playAsync();
+      }
     } catch (error) {
       Alert.alert('Error', 'Gagal mengulang audio');
     }

@@ -1,12 +1,36 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { router } from 'expo-router';
 import { Award, BookOpen, LogOut, Settings, Shield, Trophy, User } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { supabase } from '@/lib/supabase';
 
 export default function ProfileScreen() {
   const { profile, user, signOut } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [organizeInfo, setOrganizeInfo] = useState<any>(null);
+
+  const fetchOrganizeInfo = async () => {
+    if (!profile?.organize_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('organizes')
+        .select('name, description, code')
+        .eq('id', profile.organize_id)
+        .single();
+
+      if (!error && data) {
+        setOrganizeInfo(data);
+      }
+    } catch (error) {
+      console.error('Error fetching organize info:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrganizeInfo();
+  }, [profile]);
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -83,12 +107,13 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {profile?.organize_id && (
+          {organizeInfo && (
             <View style={styles.infoItem}>
               <BookOpen size={20} color="#3B82F6" />
               <View style={styles.infoContent}>
                 <Text style={styles.infoLabel}>Kelas</Text>
-                <Text style={styles.infoValue}>Kelas Aktif</Text>
+                <Text style={styles.infoValue}>{organizeInfo.name}</Text>
+                <Text style={styles.infoSubValue}>Kode: {organizeInfo.code}</Text>
               </View>
             </View>
           )}
@@ -152,23 +177,19 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Tentang Aplikasi</Text>
         
-       <View style={styles.appInfoCard}>
-  <BookOpen size={44} color="#10B981" style={{ marginBottom: 12 }} />
-
-  <Text style={styles.appName}>Ngaji App</Text>
-  <Text style={styles.appVersion}>Versi 1.0.0</Text>
-
-  <View style={styles.authorContainer}>
-    <Text style={styles.madeBy}>Dirancang dan dibangun oleh:</Text>
-    <Text style={styles.authorName}>Akra Mujjaman Raton</Text>
-    <Text style={styles.authorName}>Qiageng Berke Jaisyurrohman</Text>
-  </View>
-
-  <Text style={styles.appDescription}>
-    Platform pembelajaran Quran digital untuk hafalan, murojaah, dan monitoring perkembangan siswa.
-  </Text>
-</View>
-
+        <View style={styles.appInfoCard}>
+          <BookOpen size={44} color="#10B981" style={{ marginBottom: 12 }} />
+          <Text style={styles.appName}>Ngaji App</Text>
+          <Text style={styles.appVersion}>Versi 1.0.0</Text>
+          <View style={styles.authorContainer}>
+            <Text style={styles.madeBy}>Dirancang dan dibangun oleh:</Text>
+            <Text style={styles.authorName}>Akra Mujjaman Raton</Text>
+            <Text style={styles.authorName}>Qiageng Berke Jaisyurrohman</Text>
+          </View>
+          <Text style={styles.appDescription}>
+            Platform pembelajaran Quran digital untuk hafalan, murojaah, dan monitoring perkembangan siswa.
+          </Text>
+        </View>
       </View>
     </ScrollView>
   );
@@ -246,6 +267,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1F2937',
     fontWeight: '600',
+  },
+  infoSubValue: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 2,
   },
   achievementContainer: {
     flexDirection: 'row',
@@ -331,30 +357,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-
-
-
-
-
-
-authorContainer: {
-  alignItems: 'center',
-  marginBottom: 12,
-},
-
-madeBy: {
-  fontSize: 14,
-  color: '#4B5563',
-  fontStyle: 'italic',
-  marginBottom: 2,
-},
-
-authorName: {
-  fontSize: 14,
-  color: '#111827',
-  fontWeight: '600',
-},
-
-
-
+  authorContainer: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  madeBy: {
+    fontSize: 14,
+    color: '#4B5563',
+    fontStyle: 'italic',
+    marginBottom: 2,
+  },
+  authorName: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '600',
+  },
 });

@@ -1,6 +1,7 @@
 import type { Database } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 type UserProfile = Database['public']['Tables']['users']['Row'];
@@ -50,18 +51,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const clearAuthData = async () => {
+    try {
+      await AsyncStorage.removeItem('supabase.auth.token');
+      await AsyncStorage.clear();
+    } catch (error) {
+      console.error('Error clearing auth data:', error);
+    }
+  };
+
   useEffect(() => {
     const getInitialSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // Clear any corrupted session data first
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Session error:', error);
+          await clearAuthData();
+          setLoading(false);
+          return;
+        }
         
         if (session?.user) {
           setUser(session.user);
           const profileData = await getProfile(session.user.id);
           setProfile(profileData);
+        } else {
+          // Clear any stale data
+          await clearAuthData();
         }
       } catch (error) {
         console.error('Error getting initial session:', error);
+        await clearAuthData();
       } finally {
         setLoading(false);
       }
@@ -71,6 +93,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
+        
+        if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+          if (!session) {
+            await clearAuthData();
+          }
+        }
+        
         if (session?.user) {
           setUser(session.user);
           const profileData = await getProfile(session.user.id);
@@ -78,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           setUser(null);
           setProfile(null);
+          await clearAuthData();
         }
         setLoading(false);
       }
@@ -155,7 +186,18 @@ console.log('DEBUG signup:', { email, password, name, role });
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+      await clearAuthData();
+      setUser(null);
+      setProfile(null);
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Force clear even if signOut fails
+      await clearAuthData();
+      setUser(null);
+      setProfile(null);
+    }
   };
 
   const value = {

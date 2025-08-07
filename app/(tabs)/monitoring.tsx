@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, TextInput } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { User, TrendingUp, BookOpen, Award, Calendar, Target,XCircle , Clock, CircleCheck as CheckCircle } from 'lucide-react-native';
+import { User, TrendingUp, BookOpen, Award, Calendar, Target, Circle as XCircle, Clock, CircleCheck as CheckCircle, Search, ChartBar as BarChart3 } from 'lucide-react-native';
 
 interface ChildProgress {
   id: string;
@@ -10,17 +10,23 @@ interface ChildProgress {
   totalSetoran: number;
   setoranDiterima: number;
   setoranPending: number;
+  setoranDitolak: number;
   totalPoin: number;
   labelCount: number;
   recentActivity: any[];
   hafalanProgress: number;
   murojaahProgress: number;
+  weeklyProgress: number;
+  monthlyProgress: number;
+  accuracy: number;
 }
 
 export default function MonitoringScreen() {
   const { profile } = useAuth();
   const [children, setChildren] = useState<ChildProgress[]>([]);
+  const [filteredChildren, setFilteredChildren] = useState<ChildProgress[]>([]);
   const [selectedChild, setSelectedChild] = useState<ChildProgress | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -62,11 +68,26 @@ export default function MonitoringScreen() {
             .select('*')
             .eq('siswa_id', student.id);
 
+          // Calculate weekly and monthly progress
+          const now = new Date();
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+          const weeklySetoran = setoranData?.filter(s => 
+            new Date(s.created_at) >= weekAgo && s.status === 'diterima'
+          ).length || 0;
+
+          const monthlySetoran = setoranData?.filter(s => 
+            new Date(s.created_at) >= monthAgo && s.status === 'diterima'
+          ).length || 0;
+
           const totalSetoran = setoranData?.length || 0;
           const setoranDiterima = setoranData?.filter(s => s.status === 'diterima').length || 0;
           const setoranPending = setoranData?.filter(s => s.status === 'pending').length || 0;
+          const setoranDitolak = setoranData?.filter(s => s.status === 'ditolak').length || 0;
           const hafalanCount = setoranData?.filter(s => s.jenis === 'hafalan' && s.status === 'diterima').length || 0;
           const murojaahCount = setoranData?.filter(s => s.jenis === 'murojaah' && s.status === 'diterima').length || 0;
+          const accuracy = totalSetoran > 0 ? Math.round((setoranDiterima / totalSetoran) * 100) : 0;
 
           return {
             id: student.id,
@@ -74,21 +95,38 @@ export default function MonitoringScreen() {
             totalSetoran,
             setoranDiterima,
             setoranPending,
+            setoranDitolak,
             totalPoin: pointsData?.total_poin || 0,
             labelCount: labelsData?.length || 0,
             recentActivity: setoranData?.slice(0, 5) || [],
             hafalanProgress: hafalanCount,
             murojaahProgress: murojaahCount,
+            weeklyProgress: weeklySetoran,
+            monthlyProgress: monthlySetoran,
+            accuracy,
           };
         })
       );
 
       setChildren(childrenProgress);
+      setFilteredChildren(childrenProgress);
     } catch (error) {
       console.error('Error in fetchChildrenProgress:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (query.trim() === '') {
+      setFilteredChildren(children);
+    } else {
+      const filtered = children.filter(child =>
+        child.name.toLowerCase().includes(query.toLowerCase())
+      );
+      setFilteredChildren(filtered);
     }
   };
 
@@ -116,7 +154,7 @@ export default function MonitoringScreen() {
         <View style={styles.childInfo}>
           <Text style={styles.childName}>{child.name}</Text>
           <Text style={styles.childStats}>
-            {child.totalPoin} poin • {child.labelCount} label juz
+            {child.totalPoin} poin • {child.labelCount} label juz • {child.accuracy}% akurasi
           </Text>
         </View>
         {child.setoranPending > 0 && (
@@ -139,10 +177,8 @@ export default function MonitoringScreen() {
         </View>
         <View style={styles.progressItem}>
           <Award size={16} color="#F59E0B" />
-          <Text style={styles.progressLabel}>Akurasi</Text>
-          <Text style={styles.progressValue}>
-            {child.totalSetoran > 0 ? Math.round((child.setoranDiterima / child.totalSetoran) * 100) : 0}%
-          </Text>
+          <Text style={styles.progressLabel}>Minggu Ini</Text>
+          <Text style={styles.progressValue}>{child.weeklyProgress}</Text>
         </View>
       </View>
 
@@ -189,6 +225,33 @@ export default function MonitoringScreen() {
             <Award size={24} color="#F59E0B" />
             <Text style={styles.detailStatNumber}>{selectedChild.labelCount}</Text>
             <Text style={styles.detailStatLabel}>Label Juz</Text>
+          </View>
+        </View>
+
+        {/* Statistics Overview */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Statistik Pembelajaran</Text>
+          <View style={styles.statisticsGrid}>
+            <View style={styles.statItem}>
+              <BarChart3 size={20} color="#8B5CF6" />
+              <Text style={styles.statItemLabel}>Akurasi</Text>
+              <Text style={styles.statItemValue}>{selectedChild.accuracy}%</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Calendar size={20} color="#10B981" />
+              <Text style={styles.statItemLabel}>Minggu Ini</Text>
+              <Text style={styles.statItemValue}>{selectedChild.weeklyProgress}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Target size={20} color="#3B82F6" />
+              <Text style={styles.statItemLabel}>Bulan Ini</Text>
+              <Text style={styles.statItemValue}>{selectedChild.monthlyProgress}</Text>
+            </View>
+            <View style={styles.statItem}>
+              <XCircle size={20} color="#EF4444" />
+              <Text style={styles.statItemLabel}>Ditolak</Text>
+              <Text style={styles.statItemValue}>{selectedChild.setoranDitolak}</Text>
+            </View>
           </View>
         </View>
 
@@ -248,6 +311,9 @@ export default function MonitoringScreen() {
                     <Text style={styles.activityDate}>
                       {new Date(activity.tanggal).toLocaleDateString('id-ID')}
                     </Text>
+                    {activity.catatan && (
+                      <Text style={styles.activityNote}>Catatan: {activity.catatan}</Text>
+                    )}
                   </View>
                   <View style={styles.activityStatus}>
                     <Text style={[
@@ -285,21 +351,57 @@ export default function MonitoringScreen() {
         <Text style={styles.headerSubtitle}>Pantau perkembangan pembelajaran anak</Text>
       </View>
 
+      {/* Search */}
+      <View style={styles.searchContainer}>
+        <Search size={20} color="#9CA3AF" />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Cari nama anak..."
+          value={searchQuery}
+          onChangeText={handleSearch}
+          placeholderTextColor="#9CA3AF"
+        />
+      </View>
+
+      {/* Overall Statistics */}
+      <View style={styles.overallStatsContainer}>
+        <Text style={styles.sectionTitle}>Statistik Keseluruhan</Text>
+        <View style={styles.overallStats}>
+          <View style={styles.overallStatCard}>
+            <User size={20} color="#3B82F6" />
+            <Text style={styles.overallStatNumber}>{children.length}</Text>
+            <Text style={styles.overallStatLabel}>Total Anak</Text>
+          </View>
+          <View style={styles.overallStatCard}>
+            <TrendingUp size={20} color="#10B981" />
+            <Text style={styles.overallStatNumber}>
+              {children.reduce((sum, child) => sum + child.totalPoin, 0)}
+            </Text>
+            <Text style={styles.overallStatLabel}>Total Poin</Text>
+          </View>
+         
+        </View>
+      </View>
+
       {/* Children List */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Daftar Anak</Text>
+        <Text style={styles.sectionTitle}>
+          {searchQuery ? `Hasil Pencarian (${filteredChildren.length})` : 'Daftar Anak'}
+        </Text>
         
-        {children.length === 0 ? (
+        {filteredChildren.length === 0 ? (
           <View style={styles.emptyState}>
             <User size={48} color="#9CA3AF" />
-            <Text style={styles.emptyText}>Belum ada data anak</Text>
+            <Text style={styles.emptyText}>
+              {searchQuery ? 'Tidak ditemukan' : 'Belum ada data anak'}
+            </Text>
             <Text style={styles.emptySubtext}>
-              Pastikan anak sudah terdaftar di kelas yang sama
+              {searchQuery ? 'Coba kata kunci lain' : 'Pastikan anak sudah terdaftar di kelas yang sama'}
             </Text>
           </View>
         ) : (
           <View style={styles.childrenList}>
-            {children.map(renderChildCard)}
+            {filteredChildren.map(renderChildCard)}
           </View>
         )}
       </View>
@@ -330,6 +432,55 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     marginTop: 4,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  overallStatsContainer: {
+    margin: 16,
+  },
+  overallStats: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  overallStatCard: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  overallStatNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  overallStatLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
   },
   section: {
     margin: 16,
@@ -494,6 +645,34 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
   },
+  statisticsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  statItem: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    gap: 8,
+    width: '47%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  statItemLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  statItemValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
   progressBreakdown: {
     flexDirection: 'row',
     gap: 12,
@@ -545,7 +724,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 16,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -578,6 +757,12 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     marginTop: 2,
   },
+  activityNote: {
+    fontSize: 12,
+    color: '#374151',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
   activityStatus: {
     alignItems: 'flex-end',
   },
@@ -591,4 +776,4 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 2,
   },
-});
+}); 

@@ -1,6 +1,6 @@
+
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { AudioPlayer } from '@/components/AudioPlayer';
 import { Calendar, CircleCheck as CheckCircle, Clock, FileAudio, Pause, Play, User, Circle as XCircle } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -188,10 +188,18 @@ export default function PenilaianScreen() {
           </View>
 
           <View style={styles.audioSection}>
-            <AudioPlayer 
-              fileUrl={selectedSetoran.file_url} 
-              title={`${selectedSetoran.jenis === 'hafalan' ? 'Hafalan' : 'Murojaah'} ${selectedSetoran.surah}`}
-            />
+            <FileAudio size={24} color="#10B981" />
+            <Text style={styles.audioText}>File Audio Setoran</Text>
+            <Pressable style={styles.playButton} onPress={playAudio}>
+              {isPlaying ? (
+                <Pause size={16} color="white" />
+              ) : (
+                <Play size={16} color="white" />
+              )}
+              <Text style={styles.playButtonText}>
+                {isPlaying ? 'Pause' : 'Putar Audio'}
+              </Text>
+            </Pressable>
           </View>
 
           <View style={styles.penilaianForm}>

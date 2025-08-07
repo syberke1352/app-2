@@ -8,7 +8,7 @@ interface StudentDetailModalProps {
   studentId: string;
   studentName: string;
   onClose: () => void;
-  isTeacher?: boolean;
+  isTeacher?: boolean;  
 }
 
 interface StudentDetail {
