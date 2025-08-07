@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { BookOpen, Home, ShieldCheck, Trophy, User } from 'lucide-react-native';
+import { BookOpen, Chrome as Home, ShieldCheck, Trophy, User } from 'lucide-react-native';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 

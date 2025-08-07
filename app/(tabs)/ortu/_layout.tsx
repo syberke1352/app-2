@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { BookOpen, ChartBar as BarChart3, Home, Trophy, User } from 'lucide-react-native';
+import { BookOpen, ChartBar as BarChart3, Chrome as Home, Trophy, User } from 'lucide-react-native';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
